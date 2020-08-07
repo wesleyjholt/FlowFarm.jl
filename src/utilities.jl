@@ -242,3 +242,192 @@ function smooth_max(x; s=10.0)
     return r
 
 end
+
+"""
+    closeBndryLists(bndryPts_x, bndryPts_y)
+
+Appends the 1st element to the end of each array for a closed boundary.
+Note, this will not function properly if there is only one region.
+For only one region, use `closeBndryList(bndryPts_x, bndryPts_y)` (note the
+singular, not plural 'List' in the function title)
+
+# Arguments
+- `bndryPts_x::Array{Float,1}` : N-D array of x-coordinates for the vertices
+        around N-many closed boundaries
+- `bndryPts_y::Array{Float,1}` : N-D array of y-coordinates for the vertices
+        around N-many closed boundaries
+"""
+function closeBndryLists(region_bndry_x, region_bndry_y)
+    # Determine how many regions and points per region were passed
+    nRegions = length(region_bndry_x)
+    # For every region
+    for i in 1:nRegions
+        # Append the initial points to the end of that row (if needed)
+        region_bndry_x[i], region_bndry_y[i] = closeBndryList(region_bndry_x[i], region_bndry_y[i])
+    end
+    
+    return region_bndry_x, region_bndry_y
+end
+
+"""
+    closeBndryList(bndryPts_x, bndryPts_y)
+
+Appends the 1st element to the end of the coordinate arrays if it is not already
+repeated. Note, this will only work on 1-D arrays. For an array of 1-D arrays,
+use `closeBndryLists(bndryPts_x, bndryPts_y)` (note the
+plural, not singular 'Lists' in the function title)
+
+# Arguments
+- `bndryPts_x::Array{Float,1}` : 1-D array of x-coordinates for the vertices
+        around a singlar closed boundary
+- `bndryPts_y::Array{Float,1}` : 1-D array of y-coordinates for the vertices
+        around a singlar closed boundary
+"""
+function closeBndryList(bndry_x, bndry_y)
+    # If the end point isn't already a repeat of the staring point
+    if !((bndry_x[1] == bndry_x[end]) && (bndry_y[1] == bndry_y[end]))
+        # Append the first point to the end of the array
+        bndryPts_x_clsd = push!(bndry_x, bndry_x[1])
+        bndryPts_y_clsd = push!(bndry_y, bndry_y[1])
+    end
+
+    return bndryPts_x_clsd, bndryPts_y_clsd
+end
+
+"""
+    PointsOnCircum(center_x, center_y, r, n = 100)
+
+Given a circle center, radius, and number of discrete points, returns an array
+of discrete points along the circle's circumference
+
+# Arguments
+- `center_x::Float64` : cartesian x-coordinate for the center of the circle
+- `center_y::Float64` : cartesian y-coordinate for the center of the circle
+- `r::Float64` : distance from circle's center to the circumference points
+- `n::Float64` : defaults to 100, is the number of discrete evenly-spaced points
+        that will be returned along the circle's circumference
+"""
+function DiscreteCircum(center_x, center_y, r, n = 100)
+    bndry_x = zeros(n+1)
+    bndry_y = zeros(n+1)
+    for i in 0:n
+        bndry_x[i+1] = center_x + cos(2*pi/n*i)*r
+        bndry_y[i+1] = center_y + sin(2*pi/n*i)*r
+    end
+    return bndry_x, bndry_y
+end
+
+"""
+    calcMinorAngle(bndry_x, bndry_y, bndry_z=[0,0,0])
+
+Given three points in space, calculates the magnitude of the non-reflex angle
+formed at the center point. Created to be used in VR_bounary_startup()
+
+# Arguments
+- `bndry_x::Array{Float,1}` : 1-D array of x-coordinates for the vertices
+        around a singlar closed boundary
+- `bndry_y::Array{Float,1}` : 1-D array of y-coordinates for the vertices
+        around a singlar closed boundary
+- `bndry_z::Array{Float,1}` : 1-D array of z-coordinates for the vertices
+        around a singlar closed boundary. Default to [0,0,0] for X-Y plane
+"""
+function calcMinorAngle(bndry_x, bndry_y, bndry_z=[0,0,0])
+    # Calculates the magnitude of the non-reflex angle formed at the center point
+    ABx = bndry_x[2]-bndry_x[1]
+    ABy = bndry_y[2]-bndry_y[1]
+    ABz = bndry_z[2]-bndry_z[1]
+    
+    BCx = bndry_x[2]-bndry_x[3]
+    BCy = bndry_y[2]-bndry_y[3]
+    BCz = bndry_z[2]-bndry_z[3]
+    
+    Num = (ABx*BCx) + (ABy*BCy) + (ABz*BCz) # Dot Product
+    
+    Denom = sqrt(ABx^2 + ABy^2 + ABz^2) * sqrt(BCx^2 + BCy^2 + BCz^2) # Multiplication of magnitudes
+    Theta = acosd(Num/Denom) # Get the angle formed
+
+    # If it's greater than 180, get the 
+    if (Theta > 180.0)
+        Theta = 360.0 - Theta    # Get the explementary angle
+    end
+    
+    return Theta
+end
+
+"""
+    calcSmallestAngle(bndry_x_clsd, bndry_y_clsd)
+
+Given a 1-D closed array of boundary verticies (with first point repeated at the
+end) it determines the smallest non-reflex angle created by any three
+consecutive verticies along the boundary. Created to be used in
+VR_bounary_startup()
+
+# Arguments
+- `bndry_x::Array{Float,1}` : 1-D array of x-coordinates for the vertices
+        around a singlar closed boundary
+- `bndry_y::Array{Float,1}` : 1-D array of y-coordinates for the vertices
+        around a singlar closed boundary
+"""
+function calcSmallestAngle(bndry_x_clsd, bndry_y_clsd)
+    num_angles = length(bndry_x_clsd)-1
+    # Loop the second point back on so we get the angle at the beginning
+    if !(((bndry_x_clsd[1] == bndry_x_clsd[end-1]) && (bndry_y_clsd[1] == bndry_y_clsd[end-1])) && ((bndry_x_clsd[2] == bndry_x_clsd[end]) && (bndry_y_clsd[2] == bndry_y_clsd[end])))
+        bndryPts_x_loopd = vcat(bndry_x_clsd, bndry_x_clsd[2])
+        bndryPts_y_loopd = vcat(bndry_y_clsd, bndry_y_clsd[2])
+    end
+    
+    #- Calculate the smallest angle -#
+    smallest_angle = 360
+    for i in 1:num_angles
+        temp_angle = calcMinorAngle(bndryPts_x_loopd[i:i+2], bndryPts_y_loopd[i:i+2])
+
+        if (temp_angle < smallest_angle)
+            smallest_angle = temp_angle
+        end
+    end
+    
+    return smallest_angle
+end
+
+"""
+    getPerimeterLength(bndry_x_clsd, bndry_y_clsd)
+
+Given a 1-D closed array of boundary verticies (with first point repeated at the
+end) returns the length along the perimeter. Created to be used in
+VR_bounary_startup()
+
+# Arguments
+- `bndry_x::Array{Float,1}` : 1-D array of x-coordinates for the vertices
+        around a singlar closed boundary
+- `bndry_y::Array{Float,1}` : 1-D array of y-coordinates for the vertices
+        around a singlar closed boundary
+"""
+function getPerimeterLength(bndry_x_clsd, bndry_y_clsd)
+    num_bndry_pts = length(bndry_x_clsd)-1
+    nLength = zeros(num_bndry_pts)
+    for i in 1:num_bndry_pts
+        nLength[i] = sqrt(
+                 (bndry_x_clsd[i+1]-bndry_x_clsd[i])^2
+                +(bndry_y_clsd[i+1]-bndry_y_clsd[i])^2)
+    end
+    
+    return nLength
+end
+
+"""
+    coordDist(x1, y1, x2, y2)
+
+Given a two points (x1, y1) and (x2, y2), returns the euclidean distance between
+them
+
+# Arguments
+- `x1::Float64` : x-coord of the first point
+- `y1::Float64` : y-coord of the first point
+- `x2::Float64` : x-coord of the second point
+- `y2::Float64` : y-coord of the second point
+"""
+function coordDist(x1, y1, x2, y2)
+    xDiff = x1 - x2
+    yDiff = y1 - y2
+    return sqrt(xDiff^2 + yDiff^2)
+end

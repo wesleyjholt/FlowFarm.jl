@@ -324,7 +324,7 @@ Negative means the turbine is inside the boundary.
 - `turbine_x::Array{Float}`: turbine x locations
 - `turbine_y::Array{Float}`: turbine y locations
 """
-function ray_trace_boundary(boundary_vertices,boundary_normals,turbine_x,turbine_y;discrete=false,smooth_max_factor=100.0)
+function ray_trace_boundary(boundary_vertices,boundary_normals,turbine_x,turbine_y;discrete=false,smooth_max_factor=20.0)
 
     # single region
     if discrete == false

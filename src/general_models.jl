@@ -125,7 +125,7 @@ function point_velocity(locx, locy, locz, turbine_x, turbine_y, turbine_z, turbi
         # downstream distance between upstream turbine and point
         x = locx - turbine_x[upwind_turb_id]
 
-        if x > -eps*rotor_diameter[upwind_turb_id]
+        if x > 0.0#-eps*rotor_diameter[upwind_turb_id]
             
             # check turbine relative locations and use a spline to smooth the deficit jump
             # at the rotor hub location
